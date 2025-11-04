@@ -291,6 +291,85 @@ async def delete_arena_sub(bot: HoshinoBot, ev: CQEvent):
     else:
         await bot.send(ev, '输入的序号超出范围！')
 
+@sv_b.on_rex(r'^删除低排名绑定 (jjc|pjjc) (\d+)$')  
+@sv_qu.on_rex(r'^渠删除低排名绑定 (jjc|pjjc) (\d+)$')  
+@sv_tw.on_rex(r'^台删除低排名绑定 (jjc|pjjc) (\d+)$')  
+async def delete_my_low_rank_bindings(bot: HoshinoBot, ev: CQEvent):  
+    ret: re.Match = ev['match']  
+    arena_type = ret.group(1)  # 'jjc' 或 'pjjc'  
+    rank_threshold = int(ret.group(2))  # 排名阈值  
+    platform_id = get_platform_id(ev)  
+    qid = ev.user_id  # 只获取当前用户ID  
+      
+    # 只获取当前用户的绑定  
+    user_binds = await pcr_sqla.get_bind(platform_id, qid)  
+      
+    if not user_binds:  
+        await bot.send(ev, '您还没有绑定竞技场账号！')  
+        return  
+      
+    # 存储待删除的绑定  
+    to_delete = []  
+      
+    # 查询每个绑定的排名  
+    for bind in user_binds:  
+        try:  
+            result_storage = {}  
+            await query_all(  
+                [bind],   
+                platform_id,   
+                lambda data: check_rank_and_mark(data, result_storage, arena_type, rank_threshold),  
+                result_storage,  
+                Priority.bind.value  
+            )  
+              
+            await asyncio.sleep(0.5)  
+              
+            if result_storage.get('should_delete', False):  
+                to_delete.append(bind)  
+        except Exception as e:  
+            logger.error(f"查询 {bind.pcrid} 失败: {e}")  
+      
+    # 删除符合条件的绑定  
+    if not to_delete:  
+        await bot.send(ev, f'您没有{arena_type}排名>{rank_threshold}的绑定')  
+        return  
+      
+    deleted_list = []  
+    for bind in to_delete:  
+        await pcr_sqla.delete_bind(qid, platform_id, bind.pcrid)  
+        deleted_list.append(f'{bind.name}（{bind.pcrid}）')  
+      
+    result = f'已删除 {len(deleted_list)} 个{arena_type}排名>{rank_threshold}的绑定：\n' + '\n'.join(deleted_list)  
+    await bot.send(ev, result)  
+  
+async def check_rank_and_mark(data, storage, arena_type, threshold):  
+    """检查排名并标记是否需要删除"""  
+    try:  
+        res = data["res"]['user_info']  
+        if arena_type == 'jjc':  
+            rank = int(res['arena_rank'])  
+        else:  # pjjc  
+            rank = int(res['grand_arena_rank'])  
+          
+        if rank > threshold:  
+            storage['should_delete'] = True  
+    except Exception as e:  
+        logger.error(f"检查排名失败: {e}")
+  
+async def check_rank_and_mark(data, storage, arena_type, threshold):  
+    """检查排名并标记是否需要删除"""  
+    try:  
+        res = data["res"]['user_info']  
+        if arena_type == 'jjc':  
+            rank = int(res['arena_rank'])  
+        else:  # pjjc  
+            rank = int(res['grand_arena_rank'])  
+          
+        if rank > threshold:  
+            storage['should_delete'] = True  
+    except Exception as e:  
+        logger.error(f"检查排名失败: {e}")
 
 @sv_b.on_fullmatch('清空竞技场绑定')
 @sv_qu.on_fullmatch('渠清空竞技场绑定')
