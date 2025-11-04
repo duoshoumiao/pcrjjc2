@@ -103,7 +103,6 @@ async def on_query_arena(bot: HoshinoBot, ev: CQEvent):
     else:
         # 2. 用户未输入UID，查询默认绑定账号（重点修复：补充空列表判断）
         query_list: List[PCRBind] = await pcr_sqla.get_bind(platform_id, qid)
-        query_list.sort(key=lambda x: x.pcrid)
         # 新增：若未绑定账号，返回提示
         if not query_list:
             await bot.send(ev, '您还没有绑定竞技场账号，请先绑定后再查询！')
@@ -185,7 +184,6 @@ async def on_query_group(bot: HoshinoBot, ev: CQEvent):
         query_dict[pcrid] = 0
     else:
         query_list: List[PCRBind] = await pcr_sqla.get_bind(platform_id, qid)
-        query_list.sort(key=lambda x: x.pcrid)
         for i, bind in enumerate(query_list):
             query_dict[bind.pcrid] = i
     query_cache[ev.user_id] = []
