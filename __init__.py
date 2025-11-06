@@ -113,7 +113,7 @@ async def on_query_arena(bot: HoshinoBot, ev: CQEvent):
             query_dict[bind.pcrid] = i
     
     # 3. 后续查询逻辑（原逻辑保留）
-    query_cache[ev.user_id] = []
+    query_cache[ev.user_id] = {} 
     await query_all(
         query_list, 
         platform_id, 

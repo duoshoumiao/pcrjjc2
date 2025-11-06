@@ -196,6 +196,7 @@ async def user_query(data: dict):
     
     try:
         res = data["res"]['user_info']
+        index = info[pcrid]  
         # 处理最近登录时间
         last_login = datetime.fromtimestamp(
             int(res["last_login_time"])).strftime("%m-%d %H：%M")
@@ -237,58 +238,56 @@ async def user_query(data: dict):
         p_group_num = p_field_data.get(int(grand_arena_group), "未知")  # P场群号
         
         # 5. 拼接最终查询文本（区分显示/不显示群号）
-        if show_group:
-            query = (f'【{info[pcrid]+1}】{util.filt_message(str(res["user_name"]))}\n'
-                     f'{res["arena_rank"]}({arena_group}场,B服J群号:{j_group_num}) \n'
-                     f'{res["grand_arena_rank"]}({grand_arena_group}场,B服P群号:{p_group_num})\n'
-                     f'{extra}{talent_text}\n最近上号{last_login}\n\n')
-        else:
-            query = (f'【{info[pcrid]+1}】{util.filt_message(str(res["user_name"]))}\n'
-                     f'{res["arena_rank"]}({arena_group}场)/{res["grand_arena_rank"]}({grand_arena_group}场)\n'
-                     f'{extra}{talent_text}\n最近上号{last_login}\n\n')
-    
-    except Exception as e:
-        logger.error(f"user_query 逻辑处理失败: {str(e)}")
-        logger.error(traceback.print_exc())
-        query = "查询失败（数据解析错误）\n\n"
-
-    async with lck:
-        ev = data["ev"]
-        bot = data["bot"]
-        # 初始化/添加查询结果到缓存列表
-        if ev.user_id not in query_cache:
-            query_cache[ev.user_id] = []
-        query_list: list = query_cache[ev.user_id]
-        query_list.append(query)
-        
-        # 当所有查询完成（列表长度=查询数量），发送结果
-        if len(query_list) == len(info):
-            msg = ''.join(query_list)
-            # 处理长消息（>X字符转图片）
-            if len(msg) > 800:
-                msg = f'[CQ:image,file={image_draw(msg)}]'  # 调用text2img生成图片
-            
-            # 适配 FakeEvent：手动指定发送目标（群聊/私聊）
-            try:
-                if hasattr(ev, 'group_id') and ev.group_id:
-                    # 群聊场景：用send_group_msg避免解析event.items()
-                    await bot.send_group_msg(
-                        self_id=ev.self_id,
-                        group_id=int(ev.group_id),
-                        message=msg
-                    )
-                elif hasattr(ev, 'user_id') and ev.user_id:
-                    # 私聊场景：用send_private_msg
-                    await bot.send_private_msg(
-                        self_id=ev.self_id,
-                        user_id=int(ev.user_id),
-                        message=msg
-                    )
-            except Exception as send_e:
-                logger.error(f"user_query 消息发送失败: {str(send_e)}")
-                logger.error(traceback.print_exc())
-            
-            # 清空当前用户的查询缓存
+        if show_group:  
+            query = (f'【{index+1}】{util.filt_message(str(res["user_name"]))}\n'  
+                     f'{res["arena_rank"]}({arena_group}场,B服J群号:{j_group_num}) \n'  
+                     f'{res["grand_arena_rank"]}({grand_arena_group}场,B服P群号:{p_group_num})\n'  
+                     f'{extra}{talent_text}\n最近上号{last_login}\n\n')  
+        else:  
+            query = (f'【{index+1}】{util.filt_message(str(res["user_name"]))}\n'  
+                     f'{res["arena_rank"]}({arena_group}场)/{res["grand_arena_rank"]}({grand_arena_group}场)\n'  
+                     f'{extra}{talent_text}\n最近上号{last_login}\n\n')  
+      
+    except Exception as e:  
+        logger.error(f"user_query 逻辑处理失败: {str(e)}")  
+        logger.error(traceback.print_exc())  
+        query = "查询失败（数据解析错误）\n\n"  
+  
+    async with lck:  
+        ev = data["ev"]  
+        bot = data["bot"]  
+          
+        # query_cache[ev.user_id]已经在__init__.py中初始化为字典  
+        query_dict: dict = query_cache[ev.user_id]  
+        query_dict[pcrid] = query  # 用pcrid作为key  
+          
+        # 当所有查询完成时,按序号排序后输出  
+        if len(query_dict) == len(info):  
+            # 按info字典中的序号排序  
+            sorted_items = sorted(info.items(), key=lambda x: x[1])  
+            sorted_queries = [query_dict[pcrid_key] for pcrid_key, _ in sorted_items]  
+            msg = ''.join(sorted_queries)  
+              
+            if len(msg) > 800:  
+                msg = f'[CQ:image,file={image_draw(msg)}]'  
+              
+            try:  
+                if hasattr(ev, 'group_id') and ev.group_id:  
+                    await bot.send_group_msg(  
+                        self_id=ev.self_id,  
+                        group_id=int(ev.group_id),  
+                        message=msg  
+                    )  
+                elif hasattr(ev, 'user_id') and ev.user_id:  
+                    await bot.send_private_msg(  
+                        self_id=ev.self_id,  
+                        user_id=int(ev.user_id),  
+                        message=msg  
+                    )  
+            except Exception as send_e:  
+                logger.error(f"user_query 消息发送失败: {str(send_e)}")  
+                logger.error(traceback.print_exc())  
+              
             del query_cache[ev.user_id]
 
 
