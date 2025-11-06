@@ -58,7 +58,7 @@ jjc/pjjc当天排名上升次数、最后登录时间。
 每天5点会把上线提醒等级3改成2，有需要的可以再次手动开启。
 10）在本群推送（限群聊发送，无需好友）
 11）换私聊推送（限私聊发送，需好友）
-12）删除低排名绑定 (jjc|pjjc) +排名 '''
+12）删除低排名绑定 (jjc|pjjc) +排名 \n'''
     if not priv.check_priv(ev, priv.SUPERUSER):
         pic = image_draw(sv_help)
     else:
@@ -90,37 +90,20 @@ async def on_query_arena(bot: HoshinoBot, ev: CQEvent):
     qid = get_qid(ev)
     platform_id = get_platform_id(ev)
     query_dict: Dict[int, int] = {}
-    
     if ret.group(1):
-        # 1. 用户手动输入UID查询的逻辑（原逻辑保留）
         valid_len = 13 if platform_id != Platform.tw_id.value else 10
-        if len(ret.group(1)) != valid_len:
+        if (len(ret.group(1))) != (valid_len):
             await bot.send(ev, f'位数不对，uid是{valid_len}位的！')
             return
         pcrid = int(ret.group(1))
-        query_list = [PCRBind(platform=platform_id, pcrid=pcrid)]  # 手动指定查询账号
+        query_list = [PCRBind(platform=platform_id, pcrid=pcrid)]  # 手动查询的列表
         query_dict[pcrid] = 0
-    
     else:
-        # 2. 用户未输入UID，查询默认绑定账号（重点修复：补充空列表判断）
         query_list: List[PCRBind] = await pcr_sqla.get_bind(platform_id, qid)
-        # 新增：若未绑定账号，返回提示
-        if not query_list:
-            await bot.send(ev, '您还没有绑定竞技场账号，请先绑定后再查询！')
-            return  # 终止后续流程，避免无意义操作
-        # 原逻辑：构建查询字典
         for i, bind in enumerate(query_list):
             query_dict[bind.pcrid] = i
-    
-    # 3. 后续查询逻辑（原逻辑保留）
     query_cache[ev.user_id] = []
-    await query_all(
-        query_list, 
-        platform_id, 
-        user_query, 
-        {"bot": bot, "ev": ev, "info": query_dict, "platform": platform_id, "show_group": False}, 
-        Priority.query_user.value
-    )
+    await query_all(query_list, platform_id, user_query, {"bot": bot, "ev": ev, "info": query_dict, "platform": platform_id, "show_group": False}, Priority.query_user.value)
     
 @sv_b.on_notice('notify.poke')
 async def poke_notice(session: NoticeSession):
