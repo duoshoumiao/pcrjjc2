@@ -282,7 +282,7 @@ async def on_arena_batch_bind(bot: HoshinoBot, ev: CQEvent):
       
     text = ev.message.extract_plain_text()  
     valid_len = 13 if platform_id != Platform.tw_id.value else 10  
-    pattern = rf'bd(\d{{{valid_len}}})'  
+    pattern = rf'(\d{{{valid_len}}})'  
     matches = re.findall(pattern, text)  
       
     if not matches:  
