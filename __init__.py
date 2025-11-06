@@ -30,7 +30,7 @@ async def send_jjchelp(bot: HoshinoBot, ev: CQEvent):
     sv_help = f'''\t\t\t\t\t【{platform_name}竞技场帮助】
 可以添加的订阅：[jjc][pjjc][排名上升][上线提醒]
 # 排名上升提醒对jjc和pjjc同时生效
-# 每个QQ号至多添加8个uid的订阅
+# 每个QQ号至多添加99个uid的订阅
 # 默认开启jjc、pjjc，关闭排名上升、上线提醒
 # 手动查询时，返回昵称、jjc/pjjc排名、场次、
 jjc/pjjc当天排名上升次数、最后登录时间。
