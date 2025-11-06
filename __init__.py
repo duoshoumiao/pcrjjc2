@@ -159,7 +159,7 @@ async def poke_notice(session: NoticeSession):
             for i, bind in enumerate(query_list):
                 query_dict[bind.pcrid] = i
                 
-            query_cache[qid] = []
+            query_cache[qid] = {}
             await query_all(query_list, platform_id, user_query, {
                 "bot": bot, 
                 "ev": fake_ev, 
