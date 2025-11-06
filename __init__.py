@@ -58,7 +58,8 @@ jjc/pjjc当天排名上升次数、最后登录时间。
 每天5点会把上线提醒等级3改成2，有需要的可以再次手动开启。
 10）在本群推送（限群聊发送，无需好友）
 11）换私聊推送（限私聊发送，需好友）
-12）删除低排名绑定 (jjc|pjjc) +排名 \n'''
+12）删除低排名绑定 (jjc|pjjc) +排名
+13）渠/批量绑定 \n'''
     if not priv.check_priv(ev, priv.SUPERUSER):
         pic = image_draw(sv_help)
     else:
@@ -271,6 +272,49 @@ async def on_arena_bind(bot: HoshinoBot, ev: CQEvent):
     await query_all([PCRBind(platform=platform_id, pcrid=pcr_id, name=nickname, group=ev.group_id, user_id=ev.user_id)], platform_id, bind_pcrid,
                 {"bot": bot, "ev": ev, "info": {"platform": platform_id, "pcrid": pcr_id, "name": nickname, "group": ev.group_id, "user_id": ev.user_id}}, Priority.bind.value)
 
+@sv_b.on_rex(r'^批量绑定')  
+@sv_qu.on_rex(r'^渠批量绑定')  
+@sv_tw.on_rex(r'^台批量绑定')  
+async def on_arena_batch_bind(bot: HoshinoBot, ev: CQEvent):  
+    import re  
+    platform_id = get_platform_id(ev)  
+    qid = ev.user_id  
+      
+    text = ev.message.extract_plain_text()  
+    valid_len = 13 if platform_id != Platform.tw_id.value else 10  
+    pattern = rf'bd(\d{{{valid_len}}})'  
+    matches = re.findall(pattern, text)  
+      
+    if not matches:  
+        await bot.send(ev, f'未识别到任何bd+{valid_len}位uid')  
+        return  
+      
+    have_bind: List[PCRBind] = await pcr_sqla.get_bind(platform_id, qid)  
+    existing_pcrids = {bind.pcrid for bind in have_bind}  
+    new_pcrids = [int(uid) for uid in matches if int(uid) not in existing_pcrids]  
+      
+    if not new_pcrids:  
+        await bot.send(ev, '所有uid都已绑定')  
+        return  
+      
+    await bot.send(ev, f'识别到{len(new_pcrids)}个新uid，开始绑定...')  
+      
+    success_count = 0  
+    for pcrid in new_pcrids:  
+        try:  
+            await query_all(  
+                [PCRBind(platform=platform_id, pcrid=pcrid, name="", group=ev.group_id, user_id=qid)],  
+                platform_id,  
+                bind_pcrid,  
+                {"bot": bot, "ev": ev, "info": {"platform": platform_id, "pcrid": pcrid, "name": "", "group": ev.group_id, "user_id": qid}},  
+                Priority.bind.value  
+            )  
+            success_count += 1  
+            await asyncio.sleep(0.5)  
+        except Exception as e:  
+            pass  
+      
+    await bot.send(ev, f'完成！成功绑定{success_count}/{len(new_pcrids)}个')
 
 @sv_b.on_rex(r'^删除竞技场绑定 ?(\d+)?$')
 @sv_qu.on_rex(r'^渠删除竞技场绑定 ?(\d)?$')
