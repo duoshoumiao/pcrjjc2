@@ -132,45 +132,64 @@ class pcrclient:
         except Exception as e:
             logger.warning(f"Failed to write version to config file: {e}")
 
-    async def callapi(self, apiurl: str, request: dict, crypted: bool = True, noerr: bool = True, header=False):
+    async def callapi(self, apiurl: str, request: dict, crypted: bool = True, noerr: bool = True, header=False, max_retries: int = 3):
         async with self.call_lock:
             key = pcrclient.createkey()
 
-            try:
-                if self.viewer_id is not None:
-                    request['viewer_id'] = b64encode(pcrclient.encrypt(
-                        str(self.viewer_id), key)) if crypted else str(self.viewer_id)
-                response = (await self.client.post(get_api_root(self.bsdk.qudao) + apiurl, data=pcrclient.pack(request, key) if crypted else str(request).encode('utf8'), headers=self.headers, timeout=20)).content
-                
-                response = pcrclient.unpack(
-                    response)[0] if crypted else loads(response)
+            for attempt in range(max_retries):
+                try:
+                    if self.viewer_id is not None:
+                        request['viewer_id'] = b64encode(pcrclient.encrypt(
+                            str(self.viewer_id), key)) if crypted else str(self.viewer_id)
+                    
+                    # 使用原有的 self.client，但增加超时和重试逻辑
+                    response = (await self.client.post(
+                        get_api_root(self.bsdk.qudao) + apiurl, 
+                        data=pcrclient.pack(request, key) if crypted else str(request).encode('utf8'), 
+                        headers=self.headers, 
+                        timeout=20  # 保持原有超时设置
+                    )).content
+                    
+                    response = pcrclient.unpack(response)[0] if crypted else loads(response)
 
-                data_headers = response['data_headers']
+                    data_headers = response['data_headers']
 
-                if 'sid' in data_headers and data_headers["sid"] != '':
-                    t = md5()
-                    t.update((data_headers['sid'] + 'c!SID!n').encode('utf8'))
-                    self.headers['SID'] = t.hexdigest()
+                    if 'sid' in data_headers and data_headers["sid"] != '':
+                        t = md5()
+                        t.update((data_headers['sid'] + 'c!SID!n').encode('utf8'))
+                        self.headers['SID'] = t.hexdigest()
 
-                if 'request_id' in data_headers:
-                    self.headers['REQUEST-ID'] = data_headers['request_id']
+                    if 'request_id' in data_headers:
+                        self.headers['REQUEST-ID'] = data_headers['request_id']
 
-                # 统一版本更新逻辑
-                if 'store_url' in data_headers:
-                    if match := search(r'_v?(\d+\.\d+\.\d+).*?_', data_headers["store_url"]):
-                        version = match.group(1)
-                        self.update_version(version)
+                    # 统一版本更新逻辑
+                    if 'store_url' in data_headers:
+                        if match := search(r'_v?(\d+\.\d+\.\d+).*?_', data_headers["store_url"]):
+                            version = match.group(1)
+                            self.update_version(version)
 
-                data = response['data']
-                if not noerr and 'server_error' in data:
-                    data = data['server_error']
-                    logger.info(f'pcrclient: {apiurl} api failed {data}')
-                    raise ApiException(data['message'], data['status'])
+                    data = response['data']
+                    if not noerr and 'server_error' in data:
+                        data = data['server_error']
+                        logger.info(f'pcrclient: {apiurl} api failed {data}')
+                        raise ApiException(data['message'], data['status'])
 
-                return data if not header else (data, data_headers)
-            except Exception as e:
-                print(traceback.format_exc())
-                raise ApiException("未知错误" + str(e), 501)
+                    return data if not header else (data, data_headers)
+                    
+                except (httpx.ReadError, httpx.ConnectError, httpx.ReadTimeout, httpx.ConnectTimeout, OSError, asyncio.TimeoutError) as e:
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 2  # 指数退避：2, 4, 6秒
+                        logger.warning(f"API调用失败，{wait_time}秒后重试 (尝试 {attempt + 1}/{max_retries}): {e}")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        logger.error(f"API调用失败，已达最大重试次数: {e}")
+                        raise ApiException(f"网络连接错误: {str(e)}", 503)
+                except Exception as e:
+                    # 对于非网络错误，不重试，直接抛出
+                    logger.error(f"API调用发生未知错误: {e}")
+                    print(traceback.format_exc())
+                    raise ApiException("未知错误: " + str(e), 501)
 
     async def check_gamestart(self):
         """
