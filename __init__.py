@@ -188,7 +188,7 @@ async def on_query_group(bot: HoshinoBot, ev: CQEvent):
         query_list: List[PCRBind] = await pcr_sqla.get_bind(platform_id, qid)
         for i, bind in enumerate(query_list):
             query_dict[bind.pcrid] = i
-    query_cache[ev.user_id] = []
+    query_cache[ev.user_id] = {}
     await query_all(query_list, platform_id, user_query, {"bot": bot, "ev": ev, "info": query_dict, "platform": platform_id, "show_group": True}, Priority.query_user.value)
 
 @sv_b.on_fullmatch('竞技场订阅状态')
