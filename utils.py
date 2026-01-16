@@ -315,26 +315,10 @@ async def bind_pcrid(data):
     await bot.send_group_msg(self_id=ev.self_id, group_id=int(ev.group_id), message=reply)
 
 
-async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):  
-    global timeStamp, jjc_log  
-      
-    # 检查 Service 是否在目标群启用  
-    from . import sv_b, sv_qu, sv_tw  
-      
-    if not info.private:  
-        if info.platform == 0:  
-            service = sv_b  
-        elif info.platform == 1:  
-            service = sv_qu  
-        else:  
-            service = sv_tw  
-          
-        if not service.check_enable(info.group):  
-            logger.info(f'Service disabled in group {info.group}, skip notice')  
-            return  
-      
-    if noticeType == NoticeType.online.value:  
-        change = '上线了！' 
+async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):
+    global timeStamp, jjc_log
+    if noticeType == NoticeType.online.value:
+        change = '上线了！'
     else:
         if noticeType == NoticeType.jjc.value:
             change = '\njjc: '
