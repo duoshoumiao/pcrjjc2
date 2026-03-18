@@ -20,6 +20,10 @@ sv_b = Service('b服竞技场推送', help_="发送【竞技场帮助】", enabl
 sv_qu = Service('渠服竞技场推送', help_="发送【渠竞技场帮助】",enable_on_default=False, bundle='pcr查询')
 sv_tw = Service('台服竞技场推送', help_="发送【台竞技场帮助】", enable_on_default=False,bundle='pcr查询')
 
+from .var import sv_dict as _sv_dict  
+_sv_dict[Platform.b_id.value] = sv_b  
+_sv_dict[Platform.qu_id.value] = sv_qu  
+_sv_dict[Platform.tw_id.value] = sv_tw
 
 @sv_tw.on_fullmatch('台竞技场帮助')
 @sv_b.on_fullmatch('竞技场帮助')

@@ -12,7 +12,7 @@ from .img.create_img import generate_info_pic, generate_support_pic, generate_ta
 from ..multicq_send import group_send, private_send
 from nonebot import MessageSegment, logger
 from hoshino.typing import CQEvent
-from .var import NoticeType, Platform, platform_dict, platform_tw, query_cache, cache, lck, jjc_log
+from .var import NoticeType, Platform, platform_dict, platform_tw, query_cache, cache, lck, jjc_log, sv_dict
 import csv
 import os
 from hoshino import Service, priv
@@ -345,10 +345,15 @@ async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):
         logger.info(f'Send Notice FOR {info.user_id}({info.pcrid})')
         msg = info.name + change
         is_send = True
-        if info.private:
-            await private_send(int(info.user_id), msg)
-        else:
-            await group_send(info.group, msg + f'[CQ:at,qq={info.user_id}]')
+        if info.private:  
+            await private_send(int(info.user_id), msg)  
+        else:  
+            sv = sv_dict.get(info.platform)  
+            if sv and not sv.check_enabled(info.group):  
+                logger.info(f'Skip notice for group {info.group} (service disabled)')  
+                is_send = False  
+            else:  
+                await group_send(info.group, msg + f'[CQ:at,qq={info.user_id}]')
     if (noticeType != NoticeType.online.value) or is_send: #上线提醒没报的没必要记录
         jjc_log[info.platform].append(JJCHistory(user_id=info.user_id,
                                                 pcrid=info.pcrid,

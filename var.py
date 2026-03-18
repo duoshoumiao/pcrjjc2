@@ -95,4 +95,4 @@ jjc_log = {Platform.b_id.value: [],
            Platform.tw_id.value: []}
 
 
-
+sv_dict = {}  # Will be populated by __init__.py with {platform_id: Service}
