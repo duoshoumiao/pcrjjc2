@@ -488,8 +488,8 @@ async def private_notice(session: NoticeSession):
     bot = get_bot()
     qid = session.ctx['user_id']
     await pcr_sqla.update_bind(platform_id, {"private": True}, qid)
-    await session.send('设置成功！已为您开启推送。已通知管理员！')
-    await bot.send_private_msg(user_id=SUPERUSERS[0], message=f'{qid}开启了私聊jjc推送！')
+    await session.send('设置成功！已为您开启推送')
+    # await bot.send_private_msg(user_id=SUPERUSERS[0], message=f'{qid}开启了私聊jjc推送！')
 
 
 @sv_b.on_rex(r'^竞技场设置 ?(开启|关闭) ?(jjc|pjjc|排名上升|上线提醒) ?(\d)?$')
