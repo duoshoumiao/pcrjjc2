@@ -26,9 +26,11 @@ async def _query(client: Union[tw_pcrclient, pcrclient],  platform_id: int):
             data = DA[2]
             callback, info, result_storage = data
             uid = int(info.pcrid)
+            callback, info, result_storage = data
             res = await client.callapi('/profile/get_profile', {'target_viewer_id': uid})
             if 'user_info' not in res:
                 await client.login()  # 失败重连
+                callback, info, result_storage = data
                 res = await client.callapi('/profile/get_profile', {'target_viewer_id': uid})
             elif res["user_info"]["viewer_id"] != uid:
                 raise MatchError
