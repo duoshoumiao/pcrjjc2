@@ -15,6 +15,8 @@ from .var import BaseSet, LoadBase, platform_dict, query_cache, queue_dict, priv
 from .tool import refresh_account
 from .img.text2img import image_draw
 from .database.dal import pcr_sqla, PCRBind
+from .client.bsgamesdk import captcha_lck, manual_captch_result as _unused  
+from .client import bsgamesdk as bsgamesdk_module
 
 sv_b = Service('b服竞技场推送', help_="发送【竞技场帮助】", enable_on_default=False,bundle='pcr查询')
 sv_qu = Service('渠服竞技场推送', help_="发送【渠竞技场帮助】",enable_on_default=False, bundle='pcr查询')
@@ -693,6 +695,22 @@ async def see_a_see_frame(bot: HoshinoBot, ev: CQEvent):
 
 # ========================================AUTO========================================
 
+
+ 
+  
+@on_command('pcrval', only_to_me=False)  
+async def on_validate(session):  
+    if session.ctx['user_id'] not in SUPERUSERS:  
+        return  
+    validate_value = session.current_arg_text.strip()  
+    if not validate_value:  
+        return  
+    bsgamesdk_module.manual_captch_result = validate_value  
+    try:  
+        bsgamesdk_module.captcha_lck.release()  
+    except RuntimeError:  
+        pass  
+    await session.send('验证码已提交')
 
 @on_startup
 async def on_arena_schedule():

@@ -23,6 +23,10 @@ gt_wait = 90
 
 # 手动过码网站地址
 manual_captch_site = "https://cc004.github.io/geetest/geetest.html?"
+  
+# 手动过码用的锁和结果变量  
+captcha_lck = asyncio.Lock()  
+manual_captch_result = None
 
 
 async def sendpost(url, data):
@@ -167,29 +171,27 @@ class bsdkclient:
         elif self.qudao == 1:
             return self.account, self.password
 
-async def manual_captch_listener(user_id:str):
-    while True:
-        async with httpx.AsyncClient() as client:
-            url = f'{manual_captch_site}/api/block?userid={user_id}'
-            try:
-                response = await client.get(url, timeout=28)
-            except httpx.TimeoutException as e:
-                pass
-            else:
-                if response.status_code == 200:
-                    res = response.json()
-                    return res["validate"]
-
-async def manual_captch(challenge:str, gt:str, user_id:str, qqid:int, bili_account):
-    url = f"{manual_captch_site}/?captcha_type=1&challenge={challenge}&gt={gt}&userid={user_id}&gs=1"
-    await private_send(qqid, f'pcr账号{bili_account}登录触发验证码，请在{gt_wait}秒内完成以下链接中的验证内容。')
-    await private_send(qqid, url)
-    
-    try:
-        return (challenge, user_id, await asyncio.wait_for(manual_captch_listener(user_id), gt_wait))
-    except asyncio.TimeoutError:
-        await private_send(qqid, "手动过码获取结果超时")
-        raise RuntimeError("手动过码获取结果超时")
-    except Exception as e:
-        await private_send(qqid, f'手动过码获取结果异常：{e}')
+async def manual_captch(challenge: str, gt: str, user_id: str, qqid: int, bili_account):  
+    global manual_captch_result, captcha_lck  
+    url = f"https://help.tencentbot.top/geetest/?captcha_type=1&challenge={challenge}&gt={gt}&userid={user_id}&gs=1"  
+    await private_send(qqid, f'pcr账号{bili_account}登录触发验证码，请在{gt_wait}秒内完成以下链接中的验证内容后将第1个方框的内容复制，并加上"pcrval "前缀发送给机器人完成验证\n示例：pcrval 123456789')  
+    await private_send(qqid, url)  
+      
+    # Acquire lock first time (will succeed immediately)  
+    if not captcha_lck.locked():  
+        await captcha_lck.acquire()  
+      
+    try:  
+        # Wait for the lock to be released by the command handler  
+        await asyncio.wait_for(captcha_lck.acquire(), gt_wait)  
+        captcha_lck.release()  
+        if manual_captch_result:  
+            return (challenge, user_id, manual_captch_result)  
+        else:  
+            raise RuntimeError("手动过码结果为空")  
+    except asyncio.TimeoutError:  
+        await private_send(qqid, "手动过码获取结果超时")  
+        raise RuntimeError("手动过码获取结果超时")  
+    except Exception as e:  
+        await private_send(qqid, f'手动过码获取结果异常：{e}')  
         raise e
