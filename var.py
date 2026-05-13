@@ -35,7 +35,7 @@ class BaseSet(Enum):
     max_pri：最大私聊人数
     mode：0为本地查询，1为api查询
     """
-    b_max_pri = 999
+    b_max_pri = 0
     qu_max_pri = 0
     tw_max_pri = 0  
     mode = 0
