@@ -308,10 +308,22 @@ async def bind_pcrid(data):
             reply = '您订阅了太多账号啦！'
         elif pcrid in [bind.pcrid for bind in have_bind]:
             reply = '这个uid您已经订阅过了，不要重复订阅！'
-        else:
-            info["name"] = info["name"] if info["name"] else util.filt_message(str((res["user_name"])))
+        else:  
+            info["name"] = info["name"] if info["name"] else util.filt_message(str((res["user_name"])))  
+            reply = '添加成功！已为您开启群聊推送！'  
+            # 继承该用户已有绑定的推送方式，避免新账号被重置为默认群推送  
+            if have_bind:  
+                ref = have_bind[0]  
+                info["private"] = getattr(ref, "private", False)  
+                info["group"] = getattr(ref, "group", info.get("group"))  
+                info["email"] = getattr(ref, "email", None)  
+                info["email_code"] = getattr(ref, "email_code", None)  
+                info["email_notice"] = getattr(ref, "email_notice", False)  
+                if info.get("email_notice") and info.get("email"):  
+                    reply = f'添加成功！已为您开启邮箱推送到 {info["email"]}'  
+                elif info.get("private"):  
+                    reply = '添加成功！已为您开启私聊推送！'  
             await pcr_sqla.insert_bind(info)
-            reply = '添加成功！已为您开启群聊推送！'
     except:
         logger.error(traceback.format_exc())
         reply = f'找不到这个uid，大概率是你输错了！'
