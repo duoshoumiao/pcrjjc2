@@ -13,7 +13,11 @@ class PCRBind(SQLModel, table=True):
     pjjc_notice: Optional[bool] = Field(default=True, title='公主竞技场提醒')
     up_notice: Optional[int] = Field(default=False, title='上升提醒')
     online_notice: Optional[int] = Field(default=0, title='上线提醒')
-    private: Optional[bool] = Field(default=False, title='私聊')
+    # database/models.py  第16行后新增  
+    private: Optional[bool] = Field(default=False, title='私聊')  
+    email: Optional[str] = Field(default=None, title='推送邮箱')  
+    email_code: Optional[str] = Field(default=None, title='邮箱授权码')  
+    email_notice: Optional[bool] = Field(default=False, title='邮箱推送')
     
 
 class Account(SQLModel, table=True):

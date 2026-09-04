@@ -15,6 +15,9 @@ from hoshino.typing import CQEvent
 from .var import NoticeType, Platform, platform_dict, platform_tw, query_cache, cache, lck, jjc_log, sv_dict
 import csv
 import os
+import smtplib  
+from email.mime.text import MIMEText  
+from email.header import Header 
 from hoshino import Service, priv
 from .img.rank_parse import query_knight_exp_rank
 sv = Service('场号查询', enable_on_default=False, help_='输入"查群号XXX"查询对应场号的群号')
@@ -314,7 +317,51 @@ async def bind_pcrid(data):
         reply = f'找不到这个uid，大概率是你输错了！'
     await bot.send_group_msg(self_id=ev.self_id, group_id=int(ev.group_id), message=reply)
 
-
+_SMTP_MAP = {  
+    'qq.com': ('smtp.qq.com', 465),  
+    '163.com': ('smtp.163.com', 465),  
+    '126.com': ('smtp.126.com', 465),  
+    'gmail.com': ('smtp.gmail.com', 465),  
+    'outlook.com': ('smtp.office365.com', 587),  
+    'foxmail.com': ('smtp.qq.com', 465),  
+}  
+  
+def _send_mail_sync(to_addr: str, auth_code: str, subject: str, content: str):  
+    domain = to_addr.split('@')[-1].lower()  
+    host, port = _SMTP_MAP.get(domain, (f'smtp.{domain}', 465))  
+    m = MIMEText(content, 'plain', 'utf-8')  
+    m['Subject'] = Header(subject, 'utf-8')  
+    m['From'] = to_addr  
+    m['To'] = to_addr  
+    server = None  
+    try:  
+        if port == 465:  
+            server = smtplib.SMTP_SSL(host, port, timeout=15)  
+        else:  
+            server = smtplib.SMTP(host, port, timeout=15)  
+            server.starttls()  
+        server.login(to_addr, auth_code)  
+        server.sendmail(to_addr, [to_addr], m.as_string())  
+    except smtplib.SMTPException as e:  
+        # 授权码错误/未开通SMTP/端口不对，服务器会断开连接  
+        raise RuntimeError(f'邮件发送失败({host}:{port})：{e}，请检查邮箱是否开启SMTP服务、授权码是否正确') from e  
+    finally:  
+        if server is not None:  
+            try:  
+                server.quit()  
+            except Exception:  
+                try:  
+                    server.close()  
+                except Exception:  
+                    pass
+  
+async def send_mail(to_addr: str, auth_code: str, subject: str, content: str):  
+    loop = asyncio.get_event_loop()  
+    try:  
+        await loop.run_in_executor(None, _send_mail_sync, to_addr, auth_code, subject, content)  
+    except Exception:  
+        logger.error(traceback.format_exc())
+        
 async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):
     global timeStamp, jjc_log
     if noticeType == NoticeType.online.value:
@@ -345,7 +392,10 @@ async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):
         logger.info(f'Send Notice FOR {info.user_id}({info.pcrid})')
         msg = info.name + change
         is_send = True
-        if info.private:  
+        # utils.py  第348行前插入，并把原 if info.private 改为 elif  
+        if info.email_notice and info.email:  
+            await send_mail(info.email, info.email_code, 'PCR竞技场推送', msg)  
+        elif info.private:  
             await private_send(int(info.user_id), msg)  
         else:  
             sv = sv_dict.get(info.platform)  

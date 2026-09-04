@@ -63,9 +63,10 @@ jjc/pjjc当天排名上升次数、最后登录时间。
 2表示10分钟cd，全天报；3表示1分钟cd全天报。
 每天5点会把上线提醒等级3改成2，有需要的可以再次手动开启。
 10）在本群推送（限群聊发送，无需好友）
-11）换私聊推送（限私聊发送，需好友）
+11）换私聊推送（限私聊发送，需好友）  
 12）删除低排名绑定 (jjc|pjjc) +排名
-13）渠/批量绑定 \n'''
+13）渠/批量绑定
+14）换邮箱推送 [邮箱] [授权码]（限私聊发送） \n'''
     if not priv.check_priv(ev, priv.SUPERUSER):
         pic = image_draw(sv_help)
     else:
@@ -497,6 +498,22 @@ async def private_notice(session: NoticeSession):
     await session.send('设置成功！已为您开启推送')
     # await bot.send_private_msg(user_id=SUPERUSERS[0], message=f'{qid}开启了私聊jjc推送！')
 
+# __init__.py  第499行附近新增  
+@on_command('email_notice', aliases=('换邮箱推送', '渠换邮箱推送', '台换邮箱推送'), only_to_me=False)  
+async def email_notice(session: NoticeSession):  
+    platform_id = get_platform_id(session.event)  
+    if session.ctx['message_type'] != 'private':  
+        await session.send('为保护授权码，请加我好友后私聊发【换邮箱推送 邮箱 授权码】！')  
+        return  
+    text = str(session.ctx['message']).strip()  
+    ret = re.match(r'^\S*换邮箱推送\s+(\S+@\S+)\s+(\S+)$', text)  
+    if not ret:  
+        await session.send('格式错误！请发【换邮箱推送 邮箱 授权码】')  
+        return  
+    email, code = ret.group(1), ret.group(2)  
+    qid = session.ctx['user_id']  
+    await pcr_sqla.update_bind(platform_id, {"email": email, "email_code": code, "email_notice": True, "private": False}, qid)  
+    await session.send(f'设置成功！已开启邮箱推送到 {email}')
 
 @sv_b.on_rex(r'^竞技场设置 ?(开启|关闭) ?(jjc|pjjc|排名上升|上线提醒) ?(\d)?$')
 @sv_qu.on_rex(r'^渠竞技场设置 ?(开启|关闭) ?(jjc|pjjc|排名上升|上线提醒) ?(\d)?$')

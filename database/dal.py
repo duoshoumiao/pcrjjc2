@@ -38,9 +38,21 @@ class SQLA:
             loop.run_until_complete(self._create_all())
             loop.close()
 
-    async def _create_all(self):
-        async with self.engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
+    # database/dal.py  第41-43行替换  
+    async def _create_all(self):  
+        async with self.engine.begin() as conn:  
+            await conn.run_sync(SQLModel.metadata.create_all)  
+            # 老库补列  
+            from sqlalchemy import text  
+            for col, ddl in (  
+                ("email", "ALTER TABLE pcrbind ADD COLUMN email VARCHAR"),  
+                ("email_code", "ALTER TABLE pcrbind ADD COLUMN email_code VARCHAR"),  
+                ("email_notice", "ALTER TABLE pcrbind ADD COLUMN email_notice BOOLEAN DEFAULT 0"),  
+            ):  
+                try:  
+                    await conn.execute(text(ddl))  
+                except Exception:  
+                    pass  # 列已存在则忽略
 
     # 账号部分
     async def select_account(self) -> List[Account]:
