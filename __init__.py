@@ -211,7 +211,13 @@ async def send_arena_sub_status(bot: HoshinoBot, ev: CQEvent):
     gid = ev.group_id
     member_info = await bot.get_group_member_info(group_id=gid, user_id=qid)
     name = member_info["card"] or member_info["nickname"]
-    reply = f'{name}（{qid}）的竞技场订阅列表：\n\n群号：{user_bind[0].group}\n推送方式：{"私聊推送" if user_bind[0].private else "群聊推送"}\n'
+    if user_bind[0].email_notice and user_bind[0].email:  
+        push_type = f'邮箱推送（{user_bind[0].email}）'  
+    elif user_bind[0].private:  
+        push_type = '私聊推送'  
+    else:  
+        push_type = '群聊推送'  
+    reply = f'{name}（{qid}）的竞技场订阅列表：\n\n群号：{user_bind[0].group}\n推送方式：{push_type}\n'
     for i, bind in enumerate(user_bind):
         reply += f'\n【{i+1}】{bind.name}（{bind.pcrid}）\n'
         reply += "" if platfrom_id != Platform.tw_id.value else f"服务器：{get_tw_platform(bind.pcrid)}\n"
