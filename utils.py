@@ -384,9 +384,9 @@ async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):
         else:
             change = '\npjjc: '
         if new < old:
-            change += f'''{old}->{new} [▲{old-new}]'''
+            change += f'''{old}->{new} [▲{old-new}]邮箱推送已开放,请优先切换'''
         else:
-            change += f'''{old}->{new} [▽{new-old}]'''
+            change += f'''{old}->{new} [▽{new-old}]邮箱推送已开放,请优先切换'''
 # -----------------------------------------------------------------
     msg = ''
     onlineNotice = False
@@ -403,10 +403,15 @@ async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):
             (info.up_notice or (new > old))) or (noticeType == NoticeType.online.value and onlineNotice):
         logger.info(f'Send Notice FOR {info.user_id}({info.pcrid})')
         msg = info.name + change
-        is_send = True
-        # utils.py  第348行前插入，并把原 if info.private 改为 elif  
-        if info.email_notice and info.email:  
-            await send_mail(info.email, info.email_code, 'PCR竞技场推送', msg)  
+        is_send = True 
+        if info.email_notice and info.email:    
+            if noticeType == NoticeType.jjc.value:  
+                subject = '您的竞技场排名变化'  
+            elif noticeType == NoticeType.pjjc.value:  
+                subject = '您的公主竞技场排名变化'  
+            else:  
+                subject = 'PCR竞技场推送'  
+            await send_mail(info.email, info.email_code, subject, msg)
         elif info.private:  
             await private_send(int(info.user_id), msg)  
         else:  
