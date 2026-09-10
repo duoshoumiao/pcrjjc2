@@ -406,9 +406,9 @@ async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):
         is_send = True 
         if info.email_notice and info.email:    
             if noticeType == NoticeType.jjc.value:  
-                subject = '您的竞技场排名变化'  
+                subject = f'{info.name}的竞技场排名变化'  
             elif noticeType == NoticeType.pjjc.value:  
-                subject = '您的公主竞技场排名变化'  
+                subject = f'{info.name}的公主竞技场排名变化'  
             else:  
                 subject = 'PCR竞技场推送'  
             await send_mail(info.email, info.email_code, subject, msg)
