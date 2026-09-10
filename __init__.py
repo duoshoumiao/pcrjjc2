@@ -622,8 +622,8 @@ async def no_private(bot: HoshinoBot, ev: CQEvent):
 
 @on_command('del_binds', aliases=('pcrjjc删除绑定', '渠pcrjjc删除绑定', '台pcrjjc删除绑定'), only_to_me=False)
 async def del_binds(session: NoticeSession):
-   # 检查是否为超级用户
-    if not session.ctx.user_id in ADMIN:
+    # 检查权限是否≥管理  
+    if not priv.check_priv(session.ctx, priv.ADMIN):  
         return
     # 获取命令参数（QQ号）
     qq_num = session.current_arg_text.strip()
