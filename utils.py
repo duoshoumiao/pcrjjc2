@@ -406,7 +406,16 @@ async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):
         msg = info.name + change
         is_send = True 
         if info.group == APP_GROUP:  
-            await push_to_app(info.user_id, msg)  
+            await push_to_app(info.user_id, {  
+                "msg": msg,  
+                "pcrid": int(info.pcrid),  
+                "name": info.name,  
+                "platform": info.platform,  
+                "item": noticeType,  
+                "before": old,  
+                "after": new,  
+                "date": int(timeStamp or 0),  
+            })
         elif info.email_notice and info.email:  
             if noticeType == NoticeType.jjc.value:
                 subject = f'{info.name}的竞技场排名变化'  

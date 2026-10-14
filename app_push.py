@@ -4,18 +4,19 @@ from collections import defaultdict
 from aiohttp import web  
 from nonebot import logger  
 from .database.dal import pcr_sqla, PCRBind  
+from .var import Platform, queue_dict  
   
 APP_GROUP = -1          # PCRBind.group 为 -1 表示该绑定属于 3333 App  
 APP_PORT = 8089         # pcrjjc2 对 App 提供服务的端口  
   
 _queues: dict[int, list] = defaultdict(list)  
 _conds: dict[int, asyncio.Condition] = defaultdict(asyncio.Condition)  
-_qcounter = itertools.count()   # 查询队列元组第二位的单调递增计数器，防 TypeError  
+_qcounter = itertools.count()   # 查询队列 DA[1] 递增计数器，防元组比较 function 崩溃  
   
   
 async def push_to_app(user_id: int, payload):  
     """sendNotice 调用：把推送数据放进该 App 用户的队列并唤醒长轮询。  
-    payload 可以是 str（旧文本）或 dict（结构化，含击剑记录字段）"""  
+    payload 为结构化 dict（含 msg/pcrid/item/before/after 等字段）"""  
     cond = _conds[user_id]  
     async with cond:  
         _queues[user_id].append(payload)  
@@ -54,7 +55,7 @@ async def register(request: web.Request):
   
 async def poll(request: web.Request):  
     """App 长轮询：GET /app/poll?uid=x&timeout=30  
-    返回 {"code":0,"msgs":[...]}，msgs 元素为 push_to_app 写入的 payload（dict）"""  
+    返回 {"code":0,"msgs":[...]}，msgs 元素为 push_to_app 写入的 payload dict"""  
     user_id = int(request.query.get("uid", "0"))  
     timeout = min(float(request.query.get("timeout", "30")), 60)  
     cond = _conds[user_id]  
@@ -79,10 +80,9 @@ async def unregister(request: web.Request):
 async def app_query(request: web.Request):  
     """App 即时查询：POST {platform: int, pcrids: [int]}  
     直接入服务端账号查询队列，返回完整 /profile/get_profile 的 res 列表。  
-    不走 query_all：queue 元素 (priority, counter, data) 中 DA[1] 放递增计数器，  
+    不走 query_all：队列元素 (priority, counter, data)，DA[1] 放递增计数器，  
     避免相同 (pcrid,user_id,platform) 元组触发 function 比较的 TypeError。"""  
     try:  
-        from .var import queue_dict, Platform  
         body = await request.json()  
         platform = int(body["platform"])  
         pcrids = [int(p) for p in body["pcrids"]]  
