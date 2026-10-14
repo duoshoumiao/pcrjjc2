@@ -13,7 +13,6 @@ from ..multicq_send import group_send, private_send
 from nonebot import MessageSegment, logger
 from hoshino.typing import CQEvent
 from .var import NoticeType, Platform, platform_dict, platform_tw, query_cache, cache, lck, jjc_log, sv_dict
-from .app_push import push_to_app, APP_GROUP
 import csv
 import os
 import smtplib  
@@ -404,25 +403,14 @@ async def sendNotice(new: int, old: int, info: PCRBind, noticeType: int):
             (info.up_notice or (new > old))) or (noticeType == NoticeType.online.value and onlineNotice):
         logger.info(f'Send Notice FOR {info.user_id}({info.pcrid})')
         msg = info.name + change
-        is_send = True 
-        if info.group == APP_GROUP:  
-            await push_to_app(info.user_id, {  
-                "msg": msg,  
-                "pcrid": int(info.pcrid),  
-                "name": info.name,  
-                "platform": info.platform,  
-                "item": noticeType,  
-                "before": old,  
-                "after": new,  
-                "date": int(timeStamp or 0),  
-            })
-        elif info.email_notice and info.email:  
-            if noticeType == NoticeType.jjc.value:
+        is_send = True   
+        if info.email_notice and info.email:  
+            if noticeType == NoticeType.jjc.value:  
                 subject = f'{info.name}的竞技场排名变化'  
             elif noticeType == NoticeType.pjjc.value:  
                 subject = f'{info.name}的公主竞技场排名变化'  
             else:  
-                subject = 'PCR竞技场推送'  
+                subject = 'PCR竞技场推送'   
             await send_mail(info.email, info.email_code, subject, msg)
         elif info.private:  
             await private_send(int(info.user_id), msg)  
