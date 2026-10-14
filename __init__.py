@@ -741,6 +741,8 @@ async def on_arena_schedule():
         await refresh_account()
         await login_all()
     loop = asyncio.get_event_loop()
+    from .app_push import start_app_server  
+    loop.create_task(start_app_server())
     for platform in range(0, 2+1):
         if queue_dict[platform] or BaseSet.mode.value:
             loop.create_task(query_loop(platform))
