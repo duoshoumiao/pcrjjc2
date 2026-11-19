@@ -1,5 +1,6 @@
 import traceback
 import asyncio
+import itertools
 from typing import List, Union
 from httpx import HTTPError
 from json import loads, dumps, JSONDecodeError
@@ -12,6 +13,8 @@ from .var import BaseSet, Platform, Priority, platform_dict, queue_dict
 
 class MatchError(Exception):
     pass
+
+_qseq = itertools.count()  # 优先级队列的同级排序键，防止比较退化成 function/dict 比较
 
 async def _query(client: Union[tw_pcrclient, pcrclient],  platform_id: int):
     if platform_id == 0:
@@ -47,7 +50,7 @@ async def _query(client: Union[tw_pcrclient, pcrclient],  platform_id: int):
         except (HTTPError, MatchError):
             logger.info(f"重试：{viewer_id} 对于 {uid} 的查询请求超时或不匹配。")
             try:
-                await queue.put(DA)
+                await queue.put((priority, next(_qseq), DA[2]))
             except:
                 logger.info(f"失败：{viewer_id} 对于 {uid} 重试失败")
                 logger.info(traceback.format_exc())
@@ -69,14 +72,14 @@ async def query1(query_list: List[PCRBind], platform, function, result_storage: 
         if queue:
             if priority == Priority.query_all.value:
                 await queue.join()
-            await asyncio.gather(*map(lambda info: queue.put((priority, (info.pcrid, info.user_id, info.platform), (function, info, result_storage))), [i for i in temp1]))
+            await asyncio.gather(*map(lambda info: queue.put((priority, next(_qseq), (function, info, result_storage))), [i for i in temp1]))
         if not queue and temp1:
             logger.warn(f"未绑定台一服务器的查询账户，但有贱民查，已自动忽略")
         queue2 : asyncio.PriorityQueue = queue_dict[Platform.tw_other_id.value]
         if queue2:
             if priority == Priority.query_all.value:
                 await queue2.join()
-            await asyncio.gather(*map(lambda info: queue2.put((priority, (info.pcrid, info.user_id, info.platform), (function, info, result_storage))), [i for i in temp2]))
+            await asyncio.gather(*map(lambda info: queue2.put((priority, next(_qseq), (function, info, result_storage))), [i for i in temp2]))
         if not queue2 and temp2:
             logger.warn(f"未绑定台其他服务器的查询账户，但有贱民查，已自动忽略")
         return
@@ -85,7 +88,7 @@ async def query1(query_list: List[PCRBind], platform, function, result_storage: 
         return
     if priority == Priority.query_all.value:
         await queue.join()
-    await asyncio.gather(*map(lambda info: queue.put((priority, (info.pcrid, info.user_id, info.platform), (function, info, result_storage))), [i for i in query_list]))
+    await asyncio.gather(*map(lambda info: queue.put((priority, next(_qseq), (function, info, result_storage))), [i for i in query_list]))
 
 
 async def query2(query_list: List[PCRBind], platform: int, function, result_storage: dict ={}, priority:int=Priority.query_all.value):

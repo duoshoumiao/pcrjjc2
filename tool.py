@@ -1,12 +1,20 @@
 from asyncio import get_event_loop
 from json import load
-from os.path import join, dirname
+from os.path import join, dirname, isfile
 import glob
 from .database.dal import pcr_sqla
 from .client.playerpref import decryptxml
 account_path = join(dirname(__file__), "account")
-with open(join(account_path, 'account.json'), encoding="utf-8") as fp:
-    acinfo: list = load(fp)
+
+# 这是个迁移工具，不是插件：account.json 不存在时不要让 import 直接崩掉，
+# 否则 nonebot.load_plugins 会把它当插件加载并报 Failed to import。
+acinfo: list = []
+_account_json = join(account_path, 'account.json')
+if isfile(_account_json):
+    with open(_account_json, encoding="utf-8") as fp:
+        acinfo = load(fp)
+else:
+    print(f"[pcrjjc_huannai2.tool] 未找到 {_account_json}，迁移功能不可用（不影响正常使用）")
 
 xml_files = glob.glob(join(account_path, "*.xml"))
 for xml_file in xml_files:

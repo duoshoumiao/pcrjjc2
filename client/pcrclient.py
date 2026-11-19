@@ -20,6 +20,10 @@ class ApiException(Exception):
         super().__init__(message)
         self.code = code
 
+class RetryableError(Exception):
+    """非网络类但值得重试的异常：状态码异常 / 响应无法解密"""
+    pass
+
 def get_api_root(qudao):
     if qudao == 0:
         return random.choice([
@@ -143,14 +147,26 @@ class pcrclient:
                             str(self.viewer_id), key)) if crypted else str(self.viewer_id)
                     
                     # 使用原有的 self.client，但增加超时和重试逻辑
-                    response = (await self.client.post(
+                    resp = await self.client.post(
                         get_api_root(self.bsdk.qudao) + apiurl, 
                         data=pcrclient.pack(request, key) if crypted else str(request).encode('utf8'), 
                         headers=self.headers, 
                         timeout=20  # 保持原有超时设置
-                    )).content
-                    
-                    response = pcrclient.unpack(response)[0] if crypted else loads(response)
+                    )
+                    response = resp.content
+
+                    if resp.status_code != 200:
+                        # 网关拒绝：响应是明文错误页，按加密流解必然报 padding 错，提前识别并重试
+                        raise RetryableError(f"HTTP {resp.status_code}: {response[:120]!r}")
+
+                    if crypted:
+                        try:
+                            response = pcrclient.unpack(response)[0]
+                        except (ValueError, UnicodeDecodeError) as e:
+                            raise RetryableError(f"响应解密失败: {e}")
+                    else:
+                        response = loads(response)
+
 
                     data_headers = response['data_headers']
 
@@ -176,7 +192,7 @@ class pcrclient:
 
                     return data if not header else (data, data_headers)
                     
-                except (httpx.ReadError, httpx.ConnectError, httpx.ReadTimeout, httpx.ConnectTimeout, OSError, asyncio.TimeoutError) as e:
+                except (httpx.ReadError, httpx.ConnectError, httpx.ReadTimeout, httpx.ConnectTimeout, OSError, asyncio.TimeoutError, RetryableError) as e:
                     if attempt < max_retries - 1:
                         wait_time = (attempt + 1) * 2  # 指数退避：2, 4, 6秒
                         logger.warning(f"API调用失败，{wait_time}秒后重试 (尝试 {attempt + 1}/{max_retries}): {e}")
@@ -184,7 +200,8 @@ class pcrclient:
                         continue
                     else:
                         logger.error(f"API调用失败，已达最大重试次数: {e}")
-                        raise ApiException(f"网络连接错误: {str(e)}", 503)
+                        raise ApiException(f"API调用失败: {str(e)}", 503)
+
                 except Exception as e:
                     # 对于非网络错误，不重试，直接抛出
                     logger.error(f"API调用发生未知错误: {e}")
